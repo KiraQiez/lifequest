@@ -1,9 +1,11 @@
 import Head from "../components/Head";
 import Navi from "../components/Navi";
 import GroupMembersCard from "../components/GroupMembersCard";
+import MetricCard from "../components/MetricCard";
+import Settle from "../components/Settle";
 import { useEffect, useState } from "react";
 import Navigate from "../components/Navigate";
-import Settle from "../components/Settle";
+
 
 
 
@@ -20,6 +22,10 @@ export default function Homepage() {
   const [members, setMembers] = useState([]);   
 
 
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [userShare, setUserShare] = useState(0);
+  const [userPay, setUserPay] = useState(0);
+  const [userCollect, setUserCollect] = useState(0);
 
   useEffect(() => {
     if (Number.isNaN(groupId) || Number.isNaN(memberId)) {
@@ -35,18 +41,22 @@ export default function Homepage() {
         setLoading(true);
         setErr("");
 
-        const [gRes, mRes] = await Promise.all([
+        const [gRes, mRes, totalRes, shareRes] = await Promise.all([
           fetch(`/api/v1/groups/${groupId}`, { signal: ctrl.signal }),
           fetch(`/api/v1/groupMember/members/by-group/${groupId}`, { signal: ctrl.signal }),
+          fetch(`/api/v1/expenses/totalSpent/${groupId}`, { signal: ctrl.signal }),
+          fetch(`/api/v1/expenses/totalShare/${memberId}`, { signal: ctrl.signal }),
         ]);
 
         if (!gRes.ok) throw new Error(`Failed to load group (${gRes.status})`);
         if (!mRes.ok) throw new Error(`Failed to load members (${mRes.status})`);
-
+        if (!totalRes.ok) throw new Error(`Failed to load total spent (${totalRes.status})`);
+        if (!shareRes.ok) throw new Error(`Failed to load your share (${shareRes.status})`);
 
         const g = await gRes.json();
         const mem = await mRes.json();
-
+        const total = await totalRes.json();
+        const share = await shareRes.json();
 
         // Normalize members → [{id,name}]
 
@@ -69,7 +79,12 @@ export default function Homepage() {
         setGroup(g);
         setMembers(uiMembers);
 
+        setTotalSpent(Number(total.totalSpent ?? 0));
+        setUserShare(Number(share.totalShare ?? 0));
 
+
+        setUserPay((prev) => prev);       
+        setUserCollect((prev) => prev);   
       } catch (e) {
         if (e.name !== "AbortError") setErr(e.message || "Failed to load");
       } finally {
@@ -103,6 +118,14 @@ export default function Homepage() {
               members={members}
             />
 
+            <section className="mt-4">
+              <div className="grid grid-cols-2 gap-3">
+                <MetricCard label="Total Spent" value={`RM ${totalSpent.toFixed(2)}`} />
+                <MetricCard label="Your Share" value={`RM ${userShare.toFixed(2)}`} />
+                <MetricCard label="To Pay" value={`RM ${userPay.toFixed(2)}`} />
+                <MetricCard label="To Collect" value={`RM ${userCollect.toFixed(2)}`} />
+              </div>
+            </section>
 
 
           </>
@@ -111,9 +134,9 @@ export default function Homepage() {
         {!loading && !err && !group && (
           <div className="text-sm text-slate-500">Group not found.</div>
         )}
-        <Settle />
       </main>
-      
+      <Settle />
+
       <Navi members={members} />
       <Navigate />
             

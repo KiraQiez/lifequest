@@ -10,9 +10,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-        // if your backend path already includes /api, keep rewrite off.
-        // If your controller is under /api/v1, you can also rewrite:
-        // rewrite: (path) => path.replace(/^\/api/, '')
+
       },
     },
   },

@@ -7,7 +7,12 @@ import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Homepage from "./pages/Homepage.jsx";
 import Group from "./pages/Group.jsx";
+import Expense from "./pages/Expense.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import Profile from "./pages/profile.jsx";
+import Statistic from "./pages/Statistic.jsx";
+import Transactions from "./pages/Transactions.jsx";
+
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -22,6 +27,10 @@ createRoot(document.getElementById("root")).render(
         <Route element={<ProtectedRoute />}>
           <Route path="/home" element={<Homepage />} />
           <Route path="/group" element={<Group />} />
+          <Route path="/expense" element={<Expense />} />
+          <Route path="/statistic" element={<Statistic />} />
+          <Route path="/profile" element={<Profile />} />
+           <Route path="/transactions" element={<Transactions />} />
         </Route>
       </Routes>
     </BrowserRouter>

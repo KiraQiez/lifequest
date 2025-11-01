@@ -1,4 +1,5 @@
-import { ChevronLeftIcon, DocumentTextIcon, UserIcon } from "@heroicons/react/24/outline";
+import {DocumentTextIcon, UserIcon } from "@heroicons/react/24/outline";
+import { Link } from "react-router-dom";
 
 export default function Head() {
   return (
@@ -41,7 +42,8 @@ export default function Head() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          <button
+          <Link
+            to="/transactions"
             className="
               inline-flex items-center justify-center
               h-9 w-9 rounded-full
@@ -52,7 +54,7 @@ export default function Head() {
             aria-label="Transactions"
           >
             <DocumentTextIcon className="h-5 w-5 text-slate-800" />
-          </button>
+          </Link>
          
         </div>
       </nav>
