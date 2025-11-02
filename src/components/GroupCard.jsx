@@ -24,14 +24,19 @@ const handleClick = async () => {
 
     const res = await fetch(`${API}/api/v1/groupMember/getMemberID/${id}/${userId}`);
     if (!res.ok) throw new Error(`Failed to load member ID (${res.status})`);
-
+      
     const data = await res.json();
- 
-    const memberId = data?.memberId ?? data;
-
-    if (memberId == null || isNaN(memberId)) {
+      
+    // data = { memberId: "MABCDE1234" }
+    const memberId = data.memberId ?? data;  // extract string
+      
+    if (!memberId) {
       throw new Error("Server did not return a valid memberId");
     }
+
+localStorage.setItem("memberId", memberId);
+navigate("/home");
+
 
     localStorage.setItem("memberId", String(memberId));
     navigate("/home");
