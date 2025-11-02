@@ -128,7 +128,7 @@ export default function Group() {
   }
 
   async function reloadGroups() {
-    const userId = Number(localStorage.getItem("userId"));
+    const userId = String(localStorage.getItem("userId"));
     if (!userId) return;
     setLoading(true);
     try {
