@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Head from "../components/Head";
 import Navigate from "../components/Navigate";
 
+  const API = import.meta.env.VITE_API_BASE_URL || "";
 
 function Modal({ open, onClose, title, children }) {
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function Profile() {
           return;
         }
 
-        const res = await fetch(`/api/v1/users/getUser/${storedId}`);
+        const res = await fetch(`${API}/api/v1/users/getUser/${storedId}`);
         if (!res.ok) throw new Error(`Failed to fetch profile (${res.status})`);
         const data = await res.json();
 
@@ -124,7 +125,7 @@ export default function Profile() {
 async function saveEdit(e) {
   e.preventDefault();
   try {
-    const res = await fetch(`/api/v1/users/update/account`, {
+    const res = await fetch(`${API}/api/v1/users/update/account`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(editForm),

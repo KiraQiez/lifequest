@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
-const API_BASE = "http://localhost:8080";
+const API = import.meta.env.VITE_API_BASE_URL || "";
 
 export default function GroupCard({
   id,
@@ -22,7 +22,7 @@ const handleClick = async () => {
     const userId = Number(localStorage.getItem("userId"));
     if (!userId) throw new Error("Not logged in");
 
-    const res = await fetch(`${API_BASE}/api/v1/groupMember/getMemberID/${id}/${userId}`);
+    const res = await fetch(`${API}/api/v1/groupMember/getMemberID/${id}/${userId}`);
     if (!res.ok) throw new Error(`Failed to load member ID (${res.status})`);
 
     const data = await res.json();

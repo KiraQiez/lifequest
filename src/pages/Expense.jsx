@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import Head from "../components/Head";
 import Navigate from "../components/Navigate";
 
+  const API = import.meta.env.VITE_API_BASE_URL || "";
+
 const fmtMYR = (n) =>
   typeof n === "number" && !Number.isNaN(n) ? `RM ${n.toFixed(2)}` : "—";
 
@@ -49,8 +51,8 @@ export default function Expense() {
 
         const path =
           show === "personal"
-            ? `/api/v1/split/personal/${memberId}`
-            : `/api/v1/split/group/${groupId}`;
+            ? `${API}/api/v1/split/personal/${memberId}`
+            : `${API}/api/v1/split/group/${groupId}`;
 
         const res = await fetch(path, { signal: ctrl.signal, headers: { "Content-Type": "application/json" } });
         if (!res.ok) {
@@ -156,7 +158,7 @@ export default function Expense() {
 
     try {
       setPaying(true);
-      const res = await fetch(`/api/v1/split/markPaid/${mySplit.splitId}`, { method: "PUT" });
+      const res = await fetch(`${API}/api/v1/split/markPaid/${mySplit.splitId}`, { method: "PUT" });
       if (!res.ok) {
         const t = await res.text();
         throw new Error(t || "Failed to mark as paid");

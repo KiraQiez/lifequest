@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Head from "../components/Head";
 import GroupCard from "../components/GroupCard";
 
-const API_BASE = "http://localhost:8080";
+  const API = import.meta.env.VITE_API_BASE_URL || "";
 
 export default function Group() {
   const [openCreate, setOpenCreate] = useState(false);
@@ -44,7 +44,7 @@ export default function Group() {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE}/api/v1/groupMember/by-user/${userId}`, { signal: ctrl.signal });
+        const res = await fetch(`${API}/api/v1/groupMember/by-user/${userId}`, { signal: ctrl.signal });
         if (!res.ok) throw new Error(`Failed to load groups (${res.status})`);
         const data = await res.json();
         setGroups(Array.isArray(data) ? data : []);
@@ -67,7 +67,7 @@ export default function Group() {
       if (!userId) throw new Error("You must be logged in.");
 
       // 1) create group
-      const res = await fetch(`${API_BASE}/api/v1/groups/creategroup`, {
+      const res = await fetch(`${API}/api/v1/groups/creategroup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description }),
@@ -76,7 +76,7 @@ export default function Group() {
       const group = await res.json(); 
 
       // 2) add creator as member
-      const res2 = await fetch(`${API_BASE}/api/v1/groupMember/addMember`, {
+      const res2 = await fetch(`${API}/api/v1/groupMember/addMember`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ groupId: group.id, userId }),
@@ -109,7 +109,7 @@ export default function Group() {
       const cleanCode = String(code).trim().toUpperCase();
       if (!/^[A-Z]{4}$/.test(cleanCode)) throw new Error("Enter a valid 4-letter code.");
 
-      const res = await fetch(`${API_BASE}/api/v1/groupMember/join`, {
+      const res = await fetch(`${API}/api/v1/groupMember/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: cleanCode, userId }),

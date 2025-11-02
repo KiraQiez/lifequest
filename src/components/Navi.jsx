@@ -8,6 +8,8 @@ import SegmentedTabs from "./SegmentTabs";
 import ShareChips from "./ShareChips";
 import SummaryCard from "./SummaryCard";
 
+  const API = import.meta.env.VITE_API_BASE_URL || "";
+
 export default function Navi({ members }) {
   const people = members ?? [];
 
@@ -281,7 +283,7 @@ export default function Navi({ members }) {
       }
 
       // 3) Save splits
-      const r2 = await fetch(`/api/v1/split/addSplit`, {
+      const r2 = await fetch(`${API}/api/v1/split/addSplit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ expenseId, splits: cleanSplits }),

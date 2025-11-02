@@ -19,7 +19,7 @@ export default function Homepage() {
 
   const [members, setMembers] = useState([]);   
 
-
+  const API = import.meta.env.VITE_API_BASE_URL || "";
 
   useEffect(() => {
     if (Number.isNaN(groupId) || Number.isNaN(memberId)) {
@@ -36,8 +36,8 @@ export default function Homepage() {
         setErr("");
 
         const [gRes, mRes] = await Promise.all([
-          fetch(`/api/v1/groups/${groupId}`, { signal: ctrl.signal }),
-          fetch(`/api/v1/groupMember/members/by-group/${groupId}`, { signal: ctrl.signal }),
+          fetch(`${API}/api/v1/groups/${groupId}`, { signal: ctrl.signal }),
+          fetch(`${API}/api/v1/groupMember/members/by-group/${groupId}`, { signal: ctrl.signal }),
         ]);
 
         if (!gRes.ok) throw new Error(`Failed to load group (${gRes.status})`);
