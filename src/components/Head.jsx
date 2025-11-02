@@ -2,6 +2,8 @@ import {DocumentTextIcon, UserIcon } from "@heroicons/react/24/outline";
 import { Link } from "react-router-dom";
 
 export default function Head() {
+  const username = (localStorage.getItem("username") || "User").toString();
+
   return (
     <header className="fixed top-0 inset-x-0 z-50">
       {/* Soft amber gradient header background */}
@@ -35,7 +37,7 @@ export default function Head() {
           </button>
                   <div className="text-sm text-gray-700">
           Welcome back! <br />
-          <span className="">User</span>
+          <span className="">{username}</span>
         </div>
         </div>
 

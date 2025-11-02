@@ -270,7 +270,7 @@ export default function Navi({ members }) {
   }
 
   const isValidExpense = useMemo(() => {
-    const baseOk = subtotal > 0 && participants.length > 0 && payerId != null;
+    const baseOk = subtotal > 0 && participants.length > 1 && payerId != null;
     if (!baseOk) return false;
     if (splitMethod === "amount") return amountRemaining === 0;
     if (splitMethod === "percentage") return +pctTotal.toFixed(2) === 100;
