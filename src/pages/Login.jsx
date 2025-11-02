@@ -10,13 +10,15 @@ export default function Login() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  const API = import.meta.env.VITE_API_BASE_URL || "";
+
   async function onSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
     setError("");
 
     try {
-      const res = await fetch(`/api/v1/users/login`, {
+      const res = await fetch(`${API}/api/v1/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

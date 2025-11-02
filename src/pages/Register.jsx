@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 
-
+  const API = import.meta.env.VITE_API_BASE_URL || "";
 
 export default function Register() {
   const [username, setUsername] = useState("");
@@ -17,7 +17,7 @@ export default function Register() {
     setError("");
 
     try {
-      const res = await fetch(`/api/v1/users/register`, {
+      const res = await fetch(`${API}/api/v1/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }), 
