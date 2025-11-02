@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'https://start-spring-841972139347.asia-southeast1.run.app',
         changeOrigin: true,
 
       },

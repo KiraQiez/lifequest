@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-const API_BASE = "http://localhost:8080"; 
+
 
 
 export default function Register() {
@@ -17,7 +17,7 @@ export default function Register() {
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/users/register`, {
+      const res = await fetch(`/api/v1/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }), 
