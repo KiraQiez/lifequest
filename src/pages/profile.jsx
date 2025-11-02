@@ -49,7 +49,7 @@ export default function Profile() {
   const nav = useNavigate();
 
   // Load basics from storage to show instantly
-  const storedId = Number(localStorage.getItem("userId"));
+  const storedId = String(localStorage.getItem("userId"));
   const storedName = localStorage.getItem("username") || "User";
 
   const [loading, setLoading] = useState(true);
@@ -140,22 +140,42 @@ async function saveEdit(e) {
 }
 
 
-  async function savePassword(e) {
-    e.preventDefault();
-    if (pwdForm.next !== pwdForm.confirm) {
-      alert("New password and confirm do not match.");
-      return;
-    }
-    try {
-      // TODO: POST change password
-      // await fetch(`${API_BASE}/api/v1/users/${user.id}/change-password`, {...})
-      setOpenPwd(false);
-      setPwdForm({ current: "", next: "", confirm: "" });
-      alert("Password changed.");
-    } catch (e2) {
-      alert(e2.message || "Could not change password.");
-    }
+async function savePassword(e) {
+  e.preventDefault();
+  if (pwdForm.next !== pwdForm.confirm) {
+    alert("New password and confirm do not match.");
+    return;
   }
+  if (!user?.id) {
+    alert("Missing user id.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/v1/users/update/password`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: user.id,
+        currentPassword: pwdForm.current,
+        newPassword: pwdForm.next,
+      }),
+    });
+
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(text || `Failed (${res.status})`);
+    }
+
+    // success
+    setOpenPwd(false);
+    setPwdForm({ current: "", next: "", confirm: "" });
+    alert("Password changed.");
+  } catch (e2) {
+    alert(e2.message || "Could not change password.");
+  }
+}
+
 
   return (
     <div className="relative min-h-screen bg-slate-50 flex flex-col">

@@ -33,8 +33,8 @@ export default function Transactions() {
   // Filter: scope only
   const [scope, setScope] = useState("group"); // "personal" | "group"
 
-  const memberId = Number(localStorage.getItem("memberId"));
-  const groupId = Number(localStorage.getItem("groupId"));
+  const memberId = String(localStorage.getItem("memberId"));
+  const groupId = String(localStorage.getItem("groupId"));
 
   // Fetch when scope changes
   useEffect(() => {
@@ -425,34 +425,32 @@ export default function Transactions() {
 
                 {/* My share control */}
                 <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
-                  {payErr && (
-                    <div className="mb-2 text-xs text-rose-700 bg-rose-50 border border-rose-200 px-2 py-1.5 rounded">
-                      {payErr}
-                    </div>
-                  )}
                   {mySplitInSelected ? (
-                    mySplitInSelected.paid ? (
-                      <div className="text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1.5 rounded inline-flex items-center gap-2">
-                        <span className="h-2 w-2 bg-green-500 rounded-full" />
-                        Your share is marked paid
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-slate-600">Your share</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-900">
+                          RM {Number(mySplitInSelected.amount || 0).toFixed(2)}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide border ${
+                            mySplitInSelected.paid
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                          }`}
+                        >
+                          {mySplitInSelected.paid ? "Paid" : "Unpaid"}
+                        </span>
                       </div>
-                    ) : (
-                      <button
-                        onClick={payMyShare}
-                        disabled={paying}
-                        className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${
-                          paying ? "bg-green-300" : "bg-black"
-                        }`}
-                      >
-                        {paying ? "Marking…" : "Pay my share"}
-                      </button>
-                    )
+                    </div>
                   ) : (
                     <div className="text-xs text-slate-600">
                       Your member record is not part of this split.
                     </div>
                   )}
                 </div>
+
+
               </section>
 
               {/* Additional Notes */}

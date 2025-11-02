@@ -28,8 +28,8 @@ export default function Expense() {
   const [payErr, setPayErr] = useState("");
 
   // IDs from localStorage
-  const memberId = Number(localStorage.getItem("memberId"));
-  const groupId = Number(localStorage.getItem("groupId"));
+  const memberId = String(localStorage.getItem("memberId"));
+  const groupId = String(localStorage.getItem("groupId"));
 
   useEffect(() => {
     const ctrl = new AbortController();

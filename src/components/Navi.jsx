@@ -8,7 +8,7 @@ import SegmentedTabs from "./SegmentTabs";
 import ShareChips from "./ShareChips";
 import SummaryCard from "./SummaryCard";
 
-  const API = import.meta.env.VITE_API_BASE_URL || "";
+const API = import.meta.env.VITE_API_BASE_URL || "";
 
 export default function Navi({ members }) {
   const people = members ?? [];
@@ -88,13 +88,13 @@ export default function Navi({ members }) {
     [people, selectedIds]
   );
 
-  // stable dependency keys
+  // stable dependency keys (string-safe)
   const selectedIdsKey = useMemo(
-    () => Array.from(selectedIds).sort((a, b) => a - b).join(","),
+    () => Array.from(selectedIds).map(String).sort().join(","),
     [selectedIds]
   );
   const peopleKey = useMemo(
-    () => people.map((p) => p.id).sort((a, b) => a - b).join(","),
+    () => people.map((p) => String(p.id)).sort().join(","),
     [people]
   );
 
@@ -110,9 +110,8 @@ export default function Navi({ members }) {
 
       // remove unselected / unknown
       Object.keys(next).forEach((k) => {
-        const id = Number(k);
-        const stillExists = people.some((p) => p.id === id);
-        if (!stillExists || !selectedIds.has(id)) delete next[k];
+        const stillExists = people.some((p) => String(p.id) === String(k));
+        if (!stillExists || !selectedIds.has(k)) delete next[k];
       });
 
       // avoid useless update
@@ -138,20 +137,74 @@ export default function Navi({ members }) {
     return +(expTotal / n).toFixed(2);
   }, [expTotal, participants.length]);
 
-  const perAmountSum = useMemo(
-    () => participants.reduce((s, p) => s + (Number(perValues[p.id]) || 0), 0),
-    [participants, perValues]
+  // --------- AUTO-LAST LOGIC ---------
+  const lastParticipantId = useMemo(
+    () => (participants.length ? participants[participants.length - 1].id : null),
+    [participants]
   );
 
-  const remainingAmt = useMemo(
-    () => +(expTotal - perAmountSum).toFixed(2),
-    [expTotal, perAmountSum]
-  );
+  // Amount mode: compute explicit per-person amounts, last gets remainder
+  const computedAmounts = useMemo(() => {
+    if (!participants.length) return {};
+    const map = {};
+    const a = Number(expAmount) || 0;
+    const t = Number(expTax) || 0;
+    const total = +(a + t).toFixed(2);
 
-  const pctSum = useMemo(
-    () => participants.reduce((s, p) => s + (Number(perValues[p.id]) || 0), 0),
-    [participants, perValues]
-  );
+    const others = participants
+      .filter((p) => p.id !== lastParticipantId)
+      .reduce((s, p) => s + (Number(perValues[p.id]) || 0), 0);
+
+    const remainder = Math.max(0, +(total - others).toFixed(2));
+
+    for (const p of participants) {
+      if (p.id === lastParticipantId) {
+        map[p.id] = remainder;
+      } else {
+        map[p.id] = +((Number(perValues[p.id]) || 0).toFixed(2));
+      }
+    }
+    return map;
+  }, [participants, lastParticipantId, perValues, expAmount, expTax]);
+
+  // Percentage mode: compute explicit per-person percents, last gets (100 - sum(others))
+  const computedPercents = useMemo(() => {
+    if (!participants.length) return {};
+    const map = {};
+    const others = participants
+      .filter((p) => p.id !== lastParticipantId)
+      .reduce((s, p) => s + (Number(perValues[p.id]) || 0), 0);
+
+    const remainder = Math.max(0, +(100 - others).toFixed(2));
+
+    for (const p of participants) {
+      if (p.id === lastParticipantId) {
+        map[p.id] = remainder;
+      } else {
+        map[p.id] = +((Number(perValues[p.id]) || 0).toFixed(2));
+      }
+    }
+    return map;
+  }, [participants, lastParticipantId, perValues]);
+
+  // Remaining for amount mode (should be 0 to save)
+  const remainingAmt = useMemo(() => {
+    if (splitMethod !== "amount") return 0;
+    const sum = participants.reduce(
+      (s, p) => s + (Number(computedAmounts[p.id]) || 0),
+      0
+    );
+    return +(expTotal - sum).toFixed(2);
+  }, [splitMethod, expTotal, participants, computedAmounts]);
+
+  // Total % (should be 100 to save)
+  const pctTotal = useMemo(() => {
+    if (splitMethod !== "percentage") return 100;
+    return participants.reduce(
+      (s, p) => s + (Number(computedPercents[p.id]) || 0),
+      0
+    );
+  }, [splitMethod, participants, computedPercents]);
 
   // --- shares ---
   const expShares = useMemo(() => {
@@ -172,11 +225,9 @@ export default function Navi({ members }) {
 
     if (splitMethod === "percentage") {
       const s = {};
-      const wSum = pctSum;
       participants.forEach((p) => {
-        const w = Number(perValues[p.id]) || 0;
-        const portion = wSum > 0 ? (w / wSum) * expTotal : 0;
-        s[p.id] = +portion.toFixed(2);
+        const pct = Number(computedPercents[p.id]) || 0;
+        s[p.id] = +((pct / 100) * expTotal).toFixed(2);
       });
       // rounding fix
       const sum = Object.values(s).reduce((a, b) => a + b, 0);
@@ -190,14 +241,12 @@ export default function Navi({ members }) {
 
     if (splitMethod === "amount") {
       const s = {};
-      participants.forEach((p) => {
-        s[p.id] = +((Number(perValues[p.id]) || 0).toFixed(2));
-      });
+      participants.forEach((p) => (s[p.id] = Number(computedAmounts[p.id]) || 0));
       return s;
     }
 
     return {};
-  }, [participants, splitMethod, equalShare, expTotal, perValues, pctSum]);
+  }, [participants, splitMethod, equalShare, expTotal, computedPercents, computedAmounts]);
 
   // payer net (for summary)
   const shareOfPayer = expShares[payerId] || 0;
@@ -229,16 +278,17 @@ export default function Navi({ members }) {
 
   // When payer is changed in MobileSelect: auto-select them (effect above will enforce)
   function onChangePayer(newVal) {
-    setPayerId(Number(newVal));
+    setPayerId(String(newVal));
   }
 
   const isValidExpense = useMemo(() => {
-    const baseOk = Number(expAmount) > 0 && participants.length > 0 && payerId != null;
+    const baseOk =
+      Number(expAmount) > 0 && participants.length > 0 && payerId != null;
     if (!baseOk) return false;
     if (splitMethod === "amount") return remainingAmt === 0;
-    if (splitMethod === "percentage") return pctSum > 0;
-    return true;
-  }, [expAmount, participants.length, splitMethod, remainingAmt, pctSum, payerId]);
+    if (splitMethod === "percentage") return +pctTotal.toFixed(2) === 100;
+    return true; // equally
+  }, [expAmount, participants.length, splitMethod, remainingAmt, pctTotal, payerId]);
 
   async function handleSubmitExpense(e) {
     e.preventDefault();
@@ -248,7 +298,7 @@ export default function Navi({ members }) {
 
     try {
       // 1) Create expense shell
-      const res = await fetch(`/api/v1/expenses`, {
+      const res = await fetch(`${API}/api/v1/expenses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -374,11 +424,7 @@ export default function Navi({ members }) {
             <div>
               <label className="block text-xs font-medium text-slate-600">Who paid?</label>
               <div className="mt-1">
-                <MobileSelect
-                  value={payerId ?? ""}
-                  onChange={onChangePayer}
-                  options={people}
-                />
+                <MobileSelect value={payerId ?? ""} onChange={onChangePayer} options={people} />
               </div>
             </div>
 
@@ -389,7 +435,6 @@ export default function Navi({ members }) {
               onToggle={togglePerson}
               onAll={() => toggleSelectAll(true)}
               onNone={() => toggleSelectAll(false)}
-              // If your ShareChips supports this, it will visually disable/lock the payer chip
               disabledIds={new Set(payerId != null ? [payerId] : [])}
             />
 
@@ -431,36 +476,52 @@ export default function Navi({ members }) {
             {/* Hint */}
             <div className="text-xs text-slate-600">
               {splitMethod === "percentage"
-                ? "Enter weights (e.g., 50, 30, 20). We’ll normalize them to total 100%."
+                ? "Enter weights (e.g., 50, 30, 20). We’ll auto-fill the last person to make 100%."
                 : splitMethod === "amount"
-                ? "Enter each person’s amount. Save is enabled when Remaining = 0.00."
+                ? "Enter each person’s amount; the last person auto-fills to match the total."
                 : "Everyone will pay the same share automatically based on the total."}
             </div>
 
             {/* Per-person inputs (for percentage/amount modes) */}
             {(splitMethod === "percentage" || splitMethod === "amount") && (
               <div className="space-y-2">
-                {participants.map((p) => (
-                  <div key={p.id} className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm text-slate-800">{p.name}</div>
-                      <div className="text-[11px] text-slate-500">
-                        Share now: RM {(expShares[p.id] ?? 0).toFixed(2)}
+                {participants.map((p) => {
+                  const isLast = participants.length === 1 || p.id === lastParticipantId;
+                  const inputValue =
+                    splitMethod === "amount"
+                      ? (Number(computedAmounts[p.id]) || 0).toFixed(2)
+                      : (Number(computedPercents[p.id]) || 0).toFixed(2);
+
+                  return (
+                    <div key={p.id} className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm text-slate-800">{p.name}</div>
+                        <div className="text-[11px] text-slate-500">
+                          Share now: RM {(expShares[p.id] ?? 0).toFixed(2)}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          inputMode="decimal"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-right text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:bg-slate-100"
+                          value={inputValue}
+                          disabled={isLast}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setPerValues((prev) => ({ ...prev, [p.id]: v }));
+                          }}
+                        />
+                        {splitMethod === "percentage" && (
+                          <span className="text-xs text-slate-500">%</span>
+                        )}
                       </div>
                     </div>
-                    <input
-                      inputMode="decimal"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-right text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                      value={String(perValues[p.id] ?? 0)}
-                      onChange={(e) =>
-                        setPerValues((v) => ({ ...v, [p.id]: e.target.value }))
-                      }
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
