@@ -8,9 +8,8 @@ import Settle from "../components/Settle";
 
 
 export default function Homepage() {
-  // Safer parsing → NaN if missing
-  const groupId = parseInt(localStorage.getItem("groupId") || "", 10);
-  const memberId = parseInt(localStorage.getItem("memberId") || "", 10);
+  const groupId = localStorage.getItem("groupId") || "";
+  const memberId = localStorage.getItem("memberId") || "";
   const storedUserName = localStorage.getItem("username") || "";
 
   const [loading, setLoading] = useState(true);
@@ -22,7 +21,7 @@ export default function Homepage() {
   const API = import.meta.env.VITE_API_BASE_URL || "";
 
   useEffect(() => {
-    if (Number.isNaN(groupId) || Number.isNaN(memberId)) {
+    if (!groupId || !memberId) {
       setErr("Missing groupId/memberId in localStorage.");
       setLoading(false);
       return;
@@ -52,7 +51,7 @@ export default function Homepage() {
 
         const uiMembers = Array.isArray(mem)
           ? mem.map((m, idx) => {
-              const id = Number(m.memberId ?? m.id ?? m.member_id ?? idx + 1);
+              const id = String(m.memberId ?? m.id ?? m.member_id ?? idx + 1);
               let name = String(m.username ?? m.name ?? m.userName ?? `Member ${idx + 1}`);
               // Capitalize first letter of each word
               name = name

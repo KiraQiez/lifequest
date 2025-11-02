@@ -19,17 +19,17 @@ const handleClick = async () => {
   try {
     localStorage.setItem("groupId", String(id));
 
-    const userId = Number(localStorage.getItem("userId"));
+    const userId = String(localStorage.getItem("userId"));
     if (!userId) throw new Error("Not logged in");
 
     const res = await fetch(`${API}/api/v1/groupMember/getMemberID/${id}/${userId}`);
     if (!res.ok) throw new Error(`Failed to load member ID (${res.status})`);
 
     const data = await res.json();
-    // Support both: 7  OR  { "memberId": 7 }
-    const memberId = typeof data === "number" ? data : data?.memberId;
+ 
+    const memberId = data?.memberId ?? data;
 
-    if (memberId == null || Number.isNaN(Number(memberId))) {
+    if (memberId == null || isNaN(memberId)) {
       throw new Error("Server did not return a valid memberId");
     }
 

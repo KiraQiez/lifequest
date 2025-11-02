@@ -23,6 +23,7 @@ export default function Group() {
 
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const userId = localStorage.getItem("userId")
 
   // autofocus inputs when modals open
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function Group() {
 
   // LOAD USER GROUPS
   useEffect(() => {
-    const userId = Number(localStorage.getItem("userId"));
+    
     if (!userId) {
       setError("You must be logged in.");
       setLoading(false);
@@ -63,8 +64,7 @@ export default function Group() {
     setError("");
     setSubmitting(true);
     try {
-      const userId = Number(localStorage.getItem("userId"));
-      if (!userId) throw new Error("You must be logged in.");
+
 
       // 1) create group
       const res = await fetch(`${API}/api/v1/groups/creategroup`, {

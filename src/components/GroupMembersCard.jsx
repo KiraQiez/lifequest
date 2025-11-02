@@ -6,7 +6,7 @@ export default function GroupMembersCard({ groupName, groupCode, members }) {
   const uiMembers = useMemo(() => {
     return members.map((m, idx) => {
       if (m && typeof m === "object") {
-        const id = Number(m.id);
+        const id = String(m.id);
         let name = String(m.name);
         name = name
         .toLowerCase()
