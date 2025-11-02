@@ -103,7 +103,7 @@ export default function Group() {
     setError("");
     setSubmitting(true);
     try {
-      const userId = Number(localStorage.getItem("userId"));
+      const userId = String(localStorage.getItem("userId"));
       if (!userId) throw new Error("You must be logged in.");
 
       const cleanCode = String(code).trim().toUpperCase();
@@ -132,7 +132,7 @@ export default function Group() {
     if (!userId) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/groupMember/by-user/${userId}`);
+      const res = await fetch(`${API}/api/v1/groupMember/by-user/${userId}`);
       const data = await res.json();
       setGroups(Array.isArray(data) ? data : []);
     } catch {
