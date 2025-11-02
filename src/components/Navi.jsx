@@ -46,16 +46,14 @@ export default function Navi({ members }) {
   // choose a valid payer default (first member if exists)
   const [payerId, setPayerId] = useState(people[0]?.id ?? null);
 
-  const [expAmount, setExpAmount] = useState("");
-  const [expTax, setExpTax] = useState("");
+  // Amount = subtotal (pre-tax). Tax = percentage (%).
+  const [expAmount, setExpAmount] = useState("");  // subtotal
+  const [expTaxPct, setExpTaxPct] = useState("");  // percent number like 6 for 6%
   const [splitMethod, setSplitMethod] = useState("equally"); // equally | percentage | amount
 
   // shares selection (auto-includes payer and locks them)
-  const [selectedIds, setSelectedIds] = useState(
-    new Set(people.map((p) => p.id))
-  );
-
-  const [perValues, setPerValues] = useState({}); // { userId: number|string }
+  const [selectedIds, setSelectedIds] = useState(new Set(people.map(p => p.id)));
+  const [perValues, setPerValues] = useState({}); // per person input (amount or percent) on PRE-TAX
   const [expNotes, setExpNotes] = useState("");
 
   // keep payerId valid whenever people list changes
@@ -102,40 +100,35 @@ export default function Navi({ members }) {
   useEffect(() => {
     setPerValues((prev) => {
       const next = { ...prev };
-
       // ensure key exists for every selected
       Array.from(selectedIds).forEach((id) => {
         if (next[id] == null) next[id] = 0;
       });
-
       // remove unselected / unknown
       Object.keys(next).forEach((k) => {
         const stillExists = people.some((p) => String(p.id) === String(k));
         if (!stillExists || !selectedIds.has(k)) delete next[k];
       });
-
       // avoid useless update
       const prevKeys = Object.keys(prev);
       const nextKeys = Object.keys(next);
       const same =
         prevKeys.length === nextKeys.length &&
         nextKeys.every((k) => prev[k] === next[k]);
-
       return same ? prev : next;
     });
   }, [selectedIdsKey, peopleKey, people, selectedIds]);
 
-  // --- totals & helpers ---
-  const expTotal = useMemo(() => {
-    const a = Number(expAmount) || 0;
-    const t = Number(expTax) || 0;
-    return +(a + t).toFixed(2);
-  }, [expAmount, expTax]);
+  // --- amounts derived ---
+  const subtotal = useMemo(() => +(Number(expAmount) || 0).toFixed(2), [expAmount]);
+  const taxRate = useMemo(() => (Number(expTaxPct) || 0) / 100, [expTaxPct]);
+  const taxAmount = useMemo(() => +(subtotal * taxRate).toFixed(2), [subtotal, taxRate]);
+  const grandTotal = useMemo(() => +(subtotal + taxAmount).toFixed(2), [subtotal, taxAmount]);
 
-  const equalShare = useMemo(() => {
+  const equalSharePreTax = useMemo(() => {
     const n = Math.max(1, participants.length);
-    return +(expTotal / n).toFixed(2);
-  }, [expTotal, participants.length]);
+    return +(subtotal / n).toFixed(2);
+  }, [subtotal, participants.length]);
 
   // --------- AUTO-LAST LOGIC ---------
   const lastParticipantId = useMemo(
@@ -143,124 +136,120 @@ export default function Navi({ members }) {
     [participants]
   );
 
-  // Amount mode: compute explicit per-person amounts, last gets remainder
-  const computedAmounts = useMemo(() => {
+  // Amount mode (PRE-TAX input): last gets remainder of SUBTOTAL
+  const computedAmountsPreTax = useMemo(() => {
     if (!participants.length) return {};
     const map = {};
-    const a = Number(expAmount) || 0;
-    const t = Number(expTax) || 0;
-    const total = +(a + t).toFixed(2);
-
     const others = participants
       .filter((p) => p.id !== lastParticipantId)
       .reduce((s, p) => s + (Number(perValues[p.id]) || 0), 0);
-
-    const remainder = Math.max(0, +(total - others).toFixed(2));
-
+    const remainder = Math.max(0, +(subtotal - others).toFixed(2));
     for (const p of participants) {
-      if (p.id === lastParticipantId) {
-        map[p.id] = remainder;
-      } else {
-        map[p.id] = +((Number(perValues[p.id]) || 0).toFixed(2));
-      }
+      if (p.id === lastParticipantId) map[p.id] = remainder;
+      else map[p.id] = +((Number(perValues[p.id]) || 0).toFixed(2));
     }
     return map;
-  }, [participants, lastParticipantId, perValues, expAmount, expTax]);
+  }, [participants, lastParticipantId, perValues, subtotal]);
 
-  // Percentage mode: compute explicit per-person percents, last gets (100 - sum(others))
+  // Percentage mode: last gets (100 - sum(others))
   const computedPercents = useMemo(() => {
     if (!participants.length) return {};
     const map = {};
     const others = participants
       .filter((p) => p.id !== lastParticipantId)
       .reduce((s, p) => s + (Number(perValues[p.id]) || 0), 0);
-
     const remainder = Math.max(0, +(100 - others).toFixed(2));
-
     for (const p of participants) {
-      if (p.id === lastParticipantId) {
-        map[p.id] = remainder;
-      } else {
-        map[p.id] = +((Number(perValues[p.id]) || 0).toFixed(2));
-      }
+      if (p.id === lastParticipantId) map[p.id] = remainder;
+      else map[p.id] = +((Number(perValues[p.id]) || 0).toFixed(2));
     }
     return map;
   }, [participants, lastParticipantId, perValues]);
 
-  // Remaining for amount mode (should be 0 to save)
-  const remainingAmt = useMemo(() => {
+  // Validation helpers (PRE-TAX)
+  const amountRemaining = useMemo(() => {
     if (splitMethod !== "amount") return 0;
     const sum = participants.reduce(
-      (s, p) => s + (Number(computedAmounts[p.id]) || 0),
+      (s, p) => s + (Number(computedAmountsPreTax[p.id]) || 0),
       0
     );
-    return +(expTotal - sum).toFixed(2);
-  }, [splitMethod, expTotal, participants, computedAmounts]);
+    return +(subtotal - sum).toFixed(2); // should be 0
+  }, [splitMethod, subtotal, participants, computedAmountsPreTax]);
 
-  // Total % (should be 100 to save)
   const pctTotal = useMemo(() => {
     if (splitMethod !== "percentage") return 100;
     return participants.reduce(
       (s, p) => s + (Number(computedPercents[p.id]) || 0),
       0
-    );
+    ); // should be 100
   }, [splitMethod, participants, computedPercents]);
 
-  // --- shares ---
-  const expShares = useMemo(() => {
+  // --- PRE-TAX shares map ---
+  const sharesPreTax = useMemo(() => {
     if (!participants.length) return {};
-
     if (splitMethod === "equally") {
       const s = {};
-      participants.forEach((p) => (s[p.id] = equalShare));
-      // rounding fix
+      participants.forEach((p) => (s[p.id] = equalSharePreTax));
+      // rounding fix to hit subtotal exactly
       const sum = Object.values(s).reduce((a, b) => a + b, 0);
-      const diff = +(expTotal - sum).toFixed(2);
+      const diff = +(subtotal - sum).toFixed(2);
       if (Math.abs(diff) > 0) {
         const last = participants[participants.length - 1].id;
         s[last] = +(s[last] + diff).toFixed(2);
       }
       return s;
     }
-
     if (splitMethod === "percentage") {
       const s = {};
       participants.forEach((p) => {
         const pct = Number(computedPercents[p.id]) || 0;
-        s[p.id] = +((pct / 100) * expTotal).toFixed(2);
+        s[p.id] = +((pct / 100) * subtotal).toFixed(2);
       });
       // rounding fix
       const sum = Object.values(s).reduce((a, b) => a + b, 0);
-      const diff = +(expTotal - sum).toFixed(2);
+      const diff = +(subtotal - sum).toFixed(2);
       if (Math.abs(diff) > 0) {
         const last = participants[participants.length - 1].id;
         s[last] = +(s[last] + diff).toFixed(2);
       }
       return s;
     }
-
     if (splitMethod === "amount") {
       const s = {};
-      participants.forEach((p) => (s[p.id] = Number(computedAmounts[p.id]) || 0));
+      participants.forEach((p) => (s[p.id] = Number(computedAmountsPreTax[p.id]) || 0));
       return s;
     }
-
     return {};
-  }, [participants, splitMethod, equalShare, expTotal, computedPercents, computedAmounts]);
+  }, [participants, splitMethod, equalSharePreTax, subtotal, computedPercents, computedAmountsPreTax]);
 
-  // payer net (for summary)
-  const shareOfPayer = expShares[payerId] || 0;
-  const payerNet = +(expTotal - shareOfPayer).toFixed(2);
+  // --- FINAL (WITH-TAX) shares map sent to backend & shown in summary ---
+  const sharesFinal = useMemo(() => {
+    const s = {};
+    const mul = 1 + taxRate;
+    participants.forEach((p) => (s[p.id] = +((sharesPreTax[p.id] || 0) * mul).toFixed(2)));
+    // rounding guard to match grandTotal
+    const sum = Object.values(s).reduce((a, b) => a + b, 0);
+    const diff = +(grandTotal - sum).toFixed(2);
+    if (participants.length && Math.abs(diff) > 0) {
+      const last = participants[participants.length - 1].id;
+      s[last] = +(s[last] + diff).toFixed(2);
+    }
+    return s;
+  }, [participants, sharesPreTax, taxRate, grandTotal]);
+
+  // payer net (what others owe to payer)
+  const payerShareFinal = sharesFinal[payerId] || 0;
+  const payerNet = +(grandTotal - payerShareFinal).toFixed(2);
 
   // ---------- LOCKING LOGIC (payer always selected) ----------
   function toggleSelectAll(checked) {
     if (checked) {
       const next = new Set(people.map((p) => p.id));
-      if (payerId != null) next.add(payerId); // enforce payer
+      if (payerId != null) next.add(payerId);
       setSelectedIds(next);
     } else {
       const next = new Set();
-      if (payerId != null) next.add(payerId); // keep payer even on "None"
+      if (payerId != null) next.add(payerId);
       setSelectedIds(next);
     }
   }
@@ -271,41 +260,38 @@ export default function Navi({ members }) {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id);
       else n.add(id);
-      if (payerId != null) n.add(payerId); // re-enforce payer lock
+      if (payerId != null) n.add(payerId);
       return n;
     });
   }
 
-  // When payer is changed in MobileSelect: auto-select them (effect above will enforce)
   function onChangePayer(newVal) {
     setPayerId(String(newVal));
   }
 
   const isValidExpense = useMemo(() => {
-    const baseOk =
-      Number(expAmount) > 0 && participants.length > 0 && payerId != null;
+    const baseOk = subtotal > 0 && participants.length > 0 && payerId != null;
     if (!baseOk) return false;
-    if (splitMethod === "amount") return remainingAmt === 0;
+    if (splitMethod === "amount") return amountRemaining === 0;
     if (splitMethod === "percentage") return +pctTotal.toFixed(2) === 100;
     return true; // equally
-  }, [expAmount, participants.length, splitMethod, remainingAmt, pctTotal, payerId]);
+  }, [subtotal, participants.length, splitMethod, amountRemaining, pctTotal, payerId]);
 
   async function handleSubmitExpense(e) {
     e.preventDefault();
-    const amountNum = Number(expAmount) || 0;
-    const taxNum = Number(expTax) || 0;
-    if (amountNum <= 0 || !participants.length || payerId == null) return;
+    if (subtotal <= 0 || !participants.length || payerId == null) return;
 
     try {
-      // 1) Create expense shell
+      // 1) Create expense shell (send tax as AMOUNT, not %)
       const res = await fetch(`${API}/api/v1/expenses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: expTitle,
           payerId,
-          amount: amountNum,
-          tax: taxNum,
+          amount: subtotal,        // pre-tax subtotal
+          tax: taxAmount,          // actual tax amount derived from %
+          taxRate: Number(expTaxPct) || 0, // optional for audit (ok if backend ignores)
           splitMethod,
           date: new Date().toISOString().slice(0, 10),
           notes: expNotes,
@@ -319,20 +305,12 @@ export default function Navi({ members }) {
       const expense = await res.json();
       const expenseId = expense?.id;
 
-      // 2) Clean splits (2dp + push rounding residual to last)
+      // 2) Save splits (FINAL with tax)
       const cleanSplits = participants.map((p) => ({
         memberId: p.id,
-        amount: Number((expShares[p.id] || 0).toFixed(2)),
+        amount: Number((sharesFinal[p.id] || 0).toFixed(2)),
       }));
-      const sum = cleanSplits.reduce((a, b) => a + b.amount, 0);
-      const residual = +(expTotal - sum).toFixed(2);
-      if (Math.abs(residual) > 0 && cleanSplits.length > 0) {
-        cleanSplits[cleanSplits.length - 1].amount = +(
-          cleanSplits[cleanSplits.length - 1].amount + residual
-        ).toFixed(2);
-      }
 
-      // 3) Save splits
       const r2 = await fetch(`${API}/api/v1/split/addSplit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -349,7 +327,7 @@ export default function Navi({ members }) {
       setExpTitle("");
       setPayerId(people[0]?.id ?? null);
       setExpAmount("");
-      setExpTax("");
+      setExpTaxPct("");
       setSplitMethod("equally");
       setSelectedIds(new Set(people.map((p) => p.id)));
       setPerValues({});
@@ -361,11 +339,7 @@ export default function Navi({ members }) {
   }
 
   return (
-    <nav
-      className="fixed bottom-20 inset-x-0 z-100 pb-[env(safe-area-inset-bottom)]"
-      role="navigation"
-      aria-label="Primary"
-    >
+    <nav className="fixed bottom-20 inset-x-0 z-100 pb-[env(safe-area-inset-bottom)]" role="navigation" aria-label="Primary">
       <div className="max-w-md mx-auto px-5 py-3 flex items-center justify-end">
         <button
           ref={addBtnRef}
@@ -378,9 +352,7 @@ export default function Navi({ members }) {
           aria-controls="add-actions"
         >
           <span>Menu</span>
-          <ChevronDownIcon
-            className={`h-4 w-4 transition ${isActionsOpen ? "rotate-180" : "rotate-0"}`}
-          />
+          <ChevronDownIcon className={`h-4 w-4 transition ${isActionsOpen ? "rotate-180" : "rotate-0"}`} />
         </button>
       </div>
 
@@ -412,15 +384,11 @@ export default function Navi({ members }) {
             <div>
               <label className="block text-xs font-medium text-slate-600">Category</label>
               <div className="mt-1">
-                <MobileSelect
-                  value={expCategory}
-                  onChange={(v) => setExpCategory(v)}
-                  options={categoryOptions}
-                />
+                <MobileSelect value={expCategory} onChange={setExpCategory} options={categoryOptions} />
               </div>
             </div>
 
-            {/* Who Paid (auto-locks in shares) */}
+            {/* Who Paid */}
             <div>
               <label className="block text-xs font-medium text-slate-600">Who paid?</label>
               <div className="mt-1">
@@ -428,7 +396,7 @@ export default function Navi({ members }) {
               </div>
             </div>
 
-            {/* Participants (payer locked) */}
+            {/* Participants */}
             <ShareChips
               people={people}
               selectedIds={selectedIds}
@@ -438,10 +406,10 @@ export default function Navi({ members }) {
               disabledIds={new Set(payerId != null ? [payerId] : [])}
             />
 
-            {/* Amount + Tax */}
+            {/* Subtotal + Tax (%) */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-medium text-slate-600">Amount (RM)</label>
+                <label className="block text-xs font-medium text-slate-600">Amount (RM, pre-tax)</label>
                 <input
                   inputMode="decimal"
                   placeholder="0.00"
@@ -451,13 +419,13 @@ export default function Navi({ members }) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600">Tax / Fee (RM)</label>
+                <label className="block text-xs font-medium text-slate-600">Tax (%)</label>
                 <input
                   inputMode="decimal"
-                  placeholder="0.00"
+                  placeholder="0"
                   className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  value={expTax}
-                  onChange={(e) => setExpTax(e.target.value.replace(/,/g, "."))}
+                  value={expTaxPct}
+                  onChange={(e) => setExpTaxPct(e.target.value.replace(/,/g, "."))}
                 />
               </div>
             </div>
@@ -476,10 +444,10 @@ export default function Navi({ members }) {
             {/* Hint */}
             <div className="text-xs text-slate-600">
               {splitMethod === "percentage"
-                ? "Enter weights (e.g., 50, 30, 20). We’ll auto-fill the last person to make 100%."
+                ? "Enter percents; last person auto-fills to 100%."
                 : splitMethod === "amount"
-                ? "Enter each person’s amount; the last person auto-fills to match the total."
-                : "Everyone will pay the same share automatically based on the total."}
+                ? "Enter pre-tax amounts; last person auto-fills to hit the subtotal."
+                : "Everyone will pay the same (pre-tax). Tax is applied after the split."}
             </div>
 
             {/* Per-person inputs (for percentage/amount modes) */}
@@ -489,15 +457,17 @@ export default function Navi({ members }) {
                   const isLast = participants.length === 1 || p.id === lastParticipantId;
                   const inputValue =
                     splitMethod === "amount"
-                      ? (Number(computedAmounts[p.id]) || 0).toFixed(2)
+                      ? (Number(computedAmountsPreTax[p.id]) || 0).toFixed(2)
                       : (Number(computedPercents[p.id]) || 0).toFixed(2);
+
+                  const shareNow = sharesFinal[p.id] ?? 0; // show FINAL with tax
 
                   return (
                     <div key={p.id} className="flex items-center gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm text-slate-800">{p.name}</div>
                         <div className="text-[11px] text-slate-500">
-                          Share now: RM {(expShares[p.id] ?? 0).toFixed(2)}
+                          Final share now: RM {shareNow.toFixed(2)}
                         </div>
                       </div>
 
@@ -525,18 +495,18 @@ export default function Navi({ members }) {
               </div>
             )}
 
-            {/* Summary */}
+            {/* Summary (FINAL with tax) */}
             <div className="text-[13px]">
               <SummaryCard
-                subtotal={Number(expAmount) || 0}
-                tax={Number(expTax) || 0}
-                total={expTotal}
+                subtotal={subtotal}
+                tax={taxAmount}
+                total={grandTotal}
                 payerNet={payerNet}
                 payerName={people.find((x) => x.id === payerId)?.name || "Payer"}
                 rows={participants.map((p) => ({
                   id: p.id,
                   name: p.name,
-                  share: expShares[p.id] || 0,
+                  share: sharesFinal[p.id] || 0, // FINAL with tax
                 }))}
               />
             </div>
@@ -566,9 +536,7 @@ export default function Navi({ members }) {
                 type="submit"
                 disabled={!isValidExpense}
                 className={`rounded-lg ring-1 ring-amber-300 px-4 py-1.5 text-sm font-semibold text-slate-900 ${
-                  isValidExpense
-                    ? "bg-amber-400 hover:bg-amber-300"
-                    : "bg-amber-200 cursor-not-allowed"
+                  isValidExpense ? "bg-amber-400 hover:bg-amber-300" : "bg-amber-200 cursor-not-allowed"
                 }`}
               >
                 Save Expense
